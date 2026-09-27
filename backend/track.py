@@ -3,8 +3,28 @@ import sys
 import time
 import json
 
-with sync_playwright() as p:
+import re
 
+def clean_prices(prices):
+    for item in prices:
+        price = item["price"]
+
+        if price == "sold out":
+            item["price"] = "sold out"
+            continue
+
+        match = re.search(r"\d[\d,]*", price)
+
+        if match:
+            item["price"] = int(match.group().replace(",", ""))
+        else:
+            item["price"] = None
+
+    return prices
+
+
+with sync_playwright() as p:
+    prices=[]
     browser = p.chromium.launch(headless=False)
     if sys.argv[1]:
         card_code = sys.argv[1]
@@ -47,40 +67,27 @@ with sync_playwright() as p:
     time.sleep(0.7)
 
     # Get all options
-    btn = page.locator("button.opt-chip")
-    btn_price = page.get_by_role("button", name="Check today’s price")
-    prices = []
+    btn=page.locator("button.opt-chip")
+    btn_click=offer.get_by_role("button",name="Check today’s price")
     for i in range(btn.count()):
-        option = btn.nth(i).inner_text().strip()
-        # Select option
-        btn.nth(i).click()
-        # Wait for price button
-        btn_price.wait_for(state="visible",timeout=5000)
-        # Wait until enabled
-        # for _ in range(50):
-        #     if not btn_price.is_disabled():
-        #         break
-        #     time.sleep(0.1)
-        if btn_price.is_disabled():
-            price = "N/A"
+        opt=btn.nth(i)
+        opt.click()
+        if btn_click.count()==0:
+            btn_click=offer.locator("button.ctl.ctl-main")
+            time.sleep(1)
+        btn_click.click()
+        time.sleep(7)
+        x=opt.inner_text().strip()
+        if page.locator("span.avail-pill.avail-no").count()!=0:
+            prices.append({"option":x,"price":"sold out"})
         else:
-            btn_price.click()
-            price_locator = page.locator("span.price-value")      
-            try:
-                price_locator.wait_for(
-                    state="visible",
-                    timeout=10000
-                )
-
-                price = price_locator.inner_text().strip()
-                price = price.replace("\u200b", "")
-                price = price.replace("\n", "")
-                price = price.replace(" ", "")
-
-            except:
-                price = "0"
-        prices.append({"option": option, "price": price})
-
+            price_div = page.locator("div.nvo-c5").first
+            spans = price_div.locator("span")
+            price_parts =  spans.all_inner_texts()
+            price = "".join(price_parts).replace("\xa0", "").replace("\u200b", "").replace(" ","").strip()
+            prices.append({"option":x,"price":price})
+       
+    prices=clean_prices(prices)
     # IMPORTANT:
     # stdout contains ONLY JSON
     print(json.dumps(prices))
