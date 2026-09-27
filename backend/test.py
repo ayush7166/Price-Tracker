@@ -9,7 +9,7 @@ with sync_playwright() as p:
     page = browser.new_page()
     prices = []
     
-    for card_code in [2425,2627]:
+    for card_code in [2661]:
         url=f"https://demo.inelabteamdev.com/item/{card_code}"
         page.goto(url,wait_until="domcontentloaded")
         
