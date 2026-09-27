@@ -9,6 +9,69 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+
+
+app.patch("/api/tracked-products/:id/toggle", async (req, res) => {
+
+  const trackingJobId = req.params.id;
+
+  try {
+
+    const result = await pool.query(
+      `
+      UPDATE tracking_jobs
+      SET tracking_active = NOT tracking_active
+      WHERE id = $1
+      RETURNING *
+      `,
+      [trackingJobId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Tracking job not found"
+      });
+    }
+
+    const job = result.rows[0];
+
+    console.log(
+      "Tracking status changed:",
+      job.id,
+      job.tracking_active
+    );
+
+    res.json({
+      success: true,
+      message: job.tracking_active
+        ? "Tracking started"
+        : "Tracking paused",
+      tracking_active: job.tracking_active,
+      job: job
+    });
+
+  } catch (error) {
+
+    console.error(
+      "Toggle tracking error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to change tracking status"
+    });
+
+  }
+});
+
+
+
+
+
+
+
 // app.post("/api/track", (req, res) => {
 
 //     const card_code = req.body.card_code;
@@ -197,18 +260,34 @@ app.post("/api/track", async (req, res) => {
         // SAVE PRICE
         // ==================================
 
-        await pool.query(
-          `
-                    INSERT INTO price_history
-                    (
-                        tracking_job_id,
-                        price,
-                        status
-                    )
-                    VALUES ($1, $2, $3)
-                    `,
-          [job.id, result.price, "success"],
-        );
+        // ==================================
+        // SAVE OPTIONS + PRICES
+        // ==================================
+
+        for (const item of result) {
+          await pool.query(
+            `
+    INSERT INTO price_history
+    (
+        tracking_job_id,
+        option,
+        price,
+        status,
+        error_message
+    )
+    VALUES ($1, $2, $3, $4, $5)
+    `,
+            [
+              job.id,
+              item.option,
+              item.price === "N/A" ? null : item.price,
+              item.price === "N/A" ? "failed" : "success",
+              item.price === "N/A" ? "Price not available" : null,
+            ],
+          );
+        }
+
+        console.log("All options and prices saved successfully");
 
         // ==================================
         // UPDATE LAST TRACKED
@@ -268,11 +347,9 @@ app.post("/api/track", async (req, res) => {
   }
 });
 
-
-
 app.get("/api/tracked-products", async (req, res) => {
-    try {
-        const result = await pool.query(`
+  try {
+    const result = await pool.query(`
             SELECT
                 tj.id AS tracking_job_id,
                 tj.card_code,
@@ -297,147 +374,77 @@ app.get("/api/tracked-products", async (req, res) => {
             ORDER BY tj.id DESC, ph.tracked_at DESC
         `);
 
-        const products = {};
+    const products = {};
 
-        for (const row of result.rows) {
+    for (const row of result.rows) {
+      if (!products[row.tracking_job_id]) {
+        products[row.tracking_job_id] = {
+          tracking_job_id: row.tracking_job_id,
+          card_code: row.card_code,
+          product_name: row.product_name,
+          product_url: row.product_url,
+          tracking_active: row.tracking_active,
+          prices: [],
+        };
+      }
 
-            if (!products[row.tracking_job_id]) {
-                products[row.tracking_job_id] = {
-                    tracking_job_id: row.tracking_job_id,
-                    card_code: row.card_code,
-                    product_name: row.product_name,
-                    product_url: row.product_url,
-                    tracking_active: row.tracking_active,
-                    prices: []
-                };
-            }
-
-            if (row.price_history_id) {
-                products[row.tracking_job_id].prices.push({
-                    option: row.option,
-                    price: row.price,
-                    status: row.status,
-                    error_message: row.error_message,
-                    tracked_at: row.tracked_at
-                });
-            }
-        }
-
-        res.json(Object.values(products));
-
-    } catch (error) {
-
-        console.error(
-            "Tracked products error:",
-            error
-        );
-
-        res.status(500).json({
-            success: false,
-            error: "Failed to fetch tracked products"
+      if (row.price_history_id) {
+        products[row.tracking_job_id].prices.push({
+          option: row.option,
+          price: row.price,
+          status: row.status,
+          error_message: row.error_message,
+          tracked_at: row.tracked_at,
         });
+      }
     }
+
+    res.json(Object.values(products));
+  } catch (error) {
+    console.error("Tracked products error:", error);
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch tracked products",
+    });
+  }
 });
 app.delete("/api/tracked-products/:id", async (req, res) => {
+  const trackingJobId = req.params.id;
 
-    const trackingJobId = req.params.id;
-
-    try {
-
-        const result = await pool.query(
-            `
+  try {
+    const result = await pool.query(
+      `
             DELETE FROM tracking_jobs
             WHERE id = $1
             RETURNING *
             `,
-            [trackingJobId]
-        );
+      [trackingJobId],
+    );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: "Tracking job not found"
-            });
-        }
-
-        console.log(
-            "Tracking job deleted:",
-            trackingJobId
-        );
-
-        res.json({
-            success: true,
-            message: "Tracking stopped",
-            job: result.rows[0]
-        });
-
-    } catch (error) {
-
-        console.error(
-            "Stop tracking error:",
-            error
-        );
-
-        res.status(500).json({
-            success: false,
-            error: "Failed to stop tracking"
-        });
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Tracking job not found",
+      });
     }
+
+    console.log("Tracking job deleted:", trackingJobId);
+
+    res.json({
+      success: true,
+      message: "Tracking stopped",
+      job: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Stop tracking error:", error);
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to stop tracking",
+    });
+  }
 });
-
-app.patch("/api/tracked-products/:id/toggle", async (req, res) => {
-
-    const trackingJobId = req.params.id;
-
-    try {
-
-        const result = await pool.query(
-            `
-            UPDATE tracking_jobs
-            SET tracking_active = NOT tracking_active
-            WHERE id = $1
-            RETURNING *
-            `,
-            [trackingJobId]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: "Tracking job not found"
-            });
-        }
-
-        const job = result.rows[0];
-
-        console.log(
-            "Tracking status changed:",
-            job.id,
-            job.tracking_active
-        );
-
-        res.json({
-            success: true,
-            tracking_active: job.tracking_active,
-            job: job
-        });
-
-    } catch (error) {
-
-        console.error(
-            "Toggle tracking error:",
-            error
-        );
-
-        res.status(500).json({
-            success: false,
-            error: "Failed to change tracking status"
-        });
-    }
-});
-
-
-
 
 app.post("/api", (req, res) => {
   const search = req.body.search;

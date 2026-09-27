@@ -301,7 +301,7 @@ function App() {
                     <td>{product.card_code}</td>
                     <td>{product.brand}</td>
                     <td>{product.title}</td>
-                    <td>{product.title}</td>
+
 
                     <td>
                       <button
@@ -337,10 +337,10 @@ function App() {
 
               <div key={index}>
 
-                <h4>Product: {product.title}</h4>
+                <h4>Product: {product.product_name}</h4>
                 <h4>Card Code: {product.card_code}</h4>
                 <h4>Department : {product.dept_label}</h4>
-                <h4>Brand : {product.brand}</h4>
+                <h4>Brand : {product.option}</h4>
                 <button
                   onClick={() => stopTracking(product.tracking_job_id)}
                 >
@@ -369,7 +369,7 @@ function App() {
                     <tr>
                       <th>Option</th>
                       <th>Price</th>
-                      {/* <th>Scheduler</th> */}
+                      <th>Tracked At</th>
                     </tr>
                   </thead>
 
@@ -379,7 +379,15 @@ function App() {
                       <tr key={priceIndex}>
                         <td>{item.option}</td>
                         <td>{item.price}</td>
-                        {/* <td><button onClick={()=>scheduler(product)}>Set Scheduler</button></td> */}
+                        <td>
+                          {item.tracked_at
+                            ? new Date(item.tracked_at).toLocaleString("en-IN", {
+                              timeZone: "Asia/Kolkata",
+                              dateStyle: "medium",
+                              timeStyle: "medium"
+                            })
+                            : "N/A"}
+                        </td>
                       </tr>
                     ))}
 
