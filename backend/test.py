@@ -57,7 +57,7 @@ with sync_playwright() as p:
                 price_parts =  price_div.all_inner_texts()
                 price = "".join(price_parts).replace("\xa0", "").replace("\u200b", "").replace(" ","").strip()
                 prices.append({"option":x,"price":price})
-                print(x,":",price)
+                
             
                 
     print(prices)
