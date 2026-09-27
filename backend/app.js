@@ -9,19 +9,18 @@ const app = express();
 // const { Pool } = require("pg");
 
 
-const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    process.env.FRONTEND_PREVIEW_URL
-];
-
+// const allowedOrigins = [
+//     process.env.FRONTEND_URL,
+//     process.env.FRONTEND_PREVIEW_URL
+// ];
+// origin: function (origin, callback) {
+//         if (!origin || allowedOrigins.includes(origin)) {
+//             callback(null, true);
+//         } else {
+//             callback(new Error("Not allowed by CORS"));
+//         }
+//     }
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error("Not allowed by CORS"));
-        }
-    }
 }));
 app.use(express.json());
 
