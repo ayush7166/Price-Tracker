@@ -2,26 +2,7 @@ from playwright.sync_api import sync_playwright
 import sys
 import time
 import json
-
 import re
-
-def clean_prices(prices):
-    for item in prices:
-        price = item["price"]
-
-        if price == "sold out":
-            item["price"] = "sold out"
-            continue
-
-        match = re.search(r"\d[\d,]*", price)
-
-        if match:
-            item["price"] = int(match.group().replace(",", ""))
-        else:
-            item["price"] = None
-
-    return prices
-
 
 with sync_playwright() as p:
     prices=[]
@@ -32,9 +13,7 @@ with sync_playwright() as p:
         card_code=2064
     URL = f"https://demo.inelabteamdev.com/item/{card_code}"
     page = browser.new_page()
-
     page.goto(URL,wait_until="domcontentloaded")
-
     # Remove consent popup
     page.add_style_tag(content="""
         .consent-scrim {
@@ -42,12 +21,6 @@ with sync_playwright() as p:
         }
     """)
 
-    # Product information
-    # dept = page.locator("span.dept-label").inner_text().strip()
-    # code = card_code
-    # brand = page.locator("p.card-maker").inner_text().strip()
-    # product_name = page.locator("h3.card-title").inner_text().strip()
-    # Hover offer panel
     offer = page.locator("div.offer-panel").first
     offer.wait_for(state="visible")
     box = offer.bounding_box()
@@ -81,13 +54,21 @@ with sync_playwright() as p:
         if offer.locator("span.avail-pill.avail-no").count()!=0:
             prices.append({"option":x,"price":"sold out"})
         else:
-            price_div = offer.locator("strong.amt-h8").first
-            spans = price_div.locator("span")
-            price_parts =  spans.all_inner_texts()
-            price = "".join(price_parts).replace("\xa0", "").replace("\u200b", "").replace(" ","").strip()
-            prices.append({"option":x,"price":price})
-       
-    prices=clean_prices(prices)
+            data = page.locator("div.offer-panel.offer-ready")
+            d = data.inner_text()
+            # Get price
+            prices_found = re.findall(r'₹[\u200b\u200c\u200d\s]*[\d,\u200b\u200c\u200d]+', d)
+            pricemin=[]
+            for price in prices_found:
+                price_number = int(
+                    re.sub(r'[^0-9]', '', price)
+                )
+                pricemin.append(price_number)
+            minimum_price = min(pricemin)
+            prices.append({
+                "option": x,
+                "price": minimum_price
+            })
     # IMPORTANT:
     # stdout contains ONLY JSON
     print(json.dumps(prices))
