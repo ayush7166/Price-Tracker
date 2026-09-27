@@ -53,11 +53,12 @@ with sync_playwright() as p:
                 prices.append({"option":x,"price":"sold out"})
                 print(x,":","sold out")
             else:
-                price_div = page.locator("b.dpe-n6").first
-                price_parts =  price_div.all_inner_texts()
+                price_div = page.locator("strong.amt-h8").first
+                spans = price_div.locator("span")
+                price_parts =  spans.all_inner_texts()
                 price = "".join(price_parts).replace("\xa0", "").replace("\u200b", "").replace(" ","").strip()
                 prices.append({"option":x,"price":price})
-                
+                print(x,":",price)
             
                 
     print(prices)

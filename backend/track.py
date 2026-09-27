@@ -8,14 +8,18 @@ import re
 def clean_prices(prices):
     for item in prices:
         price = item["price"]
+
         if price == "sold out":
             item["price"] = "sold out"
             continue
+
         match = re.search(r"\d[\d,]*", price)
+
         if match:
             item["price"] = int(match.group().replace(",", ""))
         else:
             item["price"] = None
+
     return prices
 
 
@@ -71,18 +75,17 @@ with sync_playwright() as p:
         if btn_click.count()==0:
             btn_click=offer.locator("button.ctl.ctl-main")
             time.sleep(1)
-        btn_click.click()
+        btn_click.click().first
         time.sleep(7)
         x=opt.inner_text().strip()
         if offer.locator("span.avail-pill.avail-no").count()!=0:
             prices.append({"option":x,"price":"sold out"})
         else:
-            price_div = page.locator("b.dpe-n6").first
-            price_parts =  price_div.all_inner_texts()
+            price_div = offer.locator("strong.amt-h8").first
+            spans = price_div.locator("span")
+            price_parts =  spans.all_inner_texts()
             price = "".join(price_parts).replace("\xa0", "").replace("\u200b", "").replace(" ","").strip()
             prices.append({"option":x,"price":price})
-            
-                    
        
     prices=clean_prices(prices)
     # IMPORTANT:
