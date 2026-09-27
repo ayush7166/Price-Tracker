@@ -1,8 +1,144 @@
-body{
-  margin: 0px;
-  background-color:antiquewhite;
+
+body {
+  margin: 0;
+  background: #f8f9fa;
+  font-family: Arial, sans-serif;
+  color: #212529;
 }
 
-.navbar{
-  background-color: aqua;
+.navbar {
+  min-height: 68px;
 }
+
+.navbar-brand {
+  font-size: 1.3rem;
+}
+
+.container {
+  max-width: 1180px;
+}
+
+.card {
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.shadow-sm {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+.card-body {
+  padding: 18px;
+}
+
+.form-control {
+  min-height: 40px;
+  border-radius: 5px;
+}
+
+.form-control:focus {
+  border-color: #343a40;
+  box-shadow: 0 0 0 3px rgba(33, 37, 41, 0.1);
+}
+
+.btn {
+  border-radius: 5px;
+  font-weight: 500;
+}
+
+.btn-sm {
+  padding: 5px 11px;
+}
+
+h4 {
+  color: #343a40;
+  font-weight: 600;
+}
+
+.card-title {
+  color: #212529;
+  font-weight: 600;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  white-space: nowrap;
+  vertical-align: middle;
+  font-weight: 600;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+.table-dark th {
+  background: #212529;
+}
+
+.text-muted {
+  font-size: 0.85rem;
+}
+
+.fw-semibold {
+  margin-top: 2px;
+}
+
+.border-top .bg-light {
+  background: #f8f9fa !important;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.badge {
+  padding: 5px 8px;
+  font-weight: 500;
+}
+
+.card.mb-4 {
+  transition: box-shadow 0.2s ease;
+}
+
+.card.mb-4:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .navbar .container {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .navbar-brand {
+    font-size: 1.1rem;
+  }
+
+  .navbar .text-white {
+    font-size: 0.84rem;
+  }
+
+  .card-body {
+    padding: 14px;
+  }
+
+  .col-md-4.text-md-end {
+    margin-top: 12px;
+    text-align: left !important;
+  }
+
+  .btn {
+    margin-bottom: 4px;
+  }
+}
+
