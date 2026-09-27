@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const pool = require("./db/db");
 const express = require("express");
 const cors = require("cors");
@@ -6,17 +8,14 @@ const path = require("path");
 const app = express();
 // const { Pool } = require("pg");
 
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 
-
-
+const PORT = process.env.PORT || 4000;
 app.patch("/api/tracked-products/:id/toggle", async (req, res) => {
-
   const trackingJobId = req.params.id;
 
   try {
-
     const result = await pool.query(
       `
       UPDATE tracking_jobs
@@ -24,53 +23,35 @@ app.patch("/api/tracked-products/:id/toggle", async (req, res) => {
       WHERE id = $1
       RETURNING *
       `,
-      [trackingJobId]
+      [trackingJobId],
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: "Tracking job not found"
+        error: "Tracking job not found",
       });
     }
 
     const job = result.rows[0];
 
-    console.log(
-      "Tracking status changed:",
-      job.id,
-      job.tracking_active
-    );
+    console.log("Tracking status changed:", job.id, job.tracking_active);
 
     res.json({
       success: true,
-      message: job.tracking_active
-        ? "Tracking started"
-        : "Tracking paused",
+      message: job.tracking_active ? "Tracking started" : "Tracking paused",
       tracking_active: job.tracking_active,
-      job: job
+      job: job,
     });
-
   } catch (error) {
-
-    console.error(
-      "Toggle tracking error:",
-      error
-    );
+    console.error("Toggle tracking error:", error);
 
     res.status(500).json({
       success: false,
-      error: "Failed to change tracking status"
+      error: "Failed to change tracking status",
     });
-
   }
 });
-
-
-
-
-
-
 
 // app.post("/api/track", (req, res) => {
 
@@ -178,7 +159,12 @@ app.post("/api/track", async (req, res) => {
     // 2. RUN PYTHON SCRAPER
     // ==========================================
 
-    const pythonPath = path.join(__dirname, "venv", "Scripts", "python.exe");
+    // const pythonPath = path.join(__dirname, "venv", "Scripts", "python.exe"); // this is for localhsot
+    // const pythonPath = "python";
+    const pythonPath =
+      process.platform === "win32"
+        ? path.join(__dirname, "venv", "Scripts", "python.exe")
+        : "python";
 
     const trackPath = path.join(__dirname, "track.py");
 
@@ -346,33 +332,30 @@ app.post("/api/track", async (req, res) => {
     });
   }
 });
-
 app.get("/api/tracked-products", async (req, res) => {
   try {
     const result = await pool.query(`
-            SELECT
-                tj.id AS tracking_job_id,
-                tj.card_code,
-                tj.product_name,
-                tj.product_url,
-                tj.tracking_active,
+      SELECT
+        tj.id AS tracking_job_id,
+        tj.card_code,
+        tj.product_name,
+        tj.product_url,
+        tj.tracking_active,
 
-                ph.id AS price_history_id,
-                ph.option,
-                ph.price,
-                ph.status,
-                ph.error_message,
-                ph.tracked_at
+        ph.id AS price_history_id,
+        ph.option,
+        ph.price,
+        ph.status,
+        ph.error_message,
+        ph.tracked_at
 
-            FROM tracking_jobs tj
+      FROM tracking_jobs tj
 
-            LEFT JOIN price_history ph
-                ON tj.id = ph.tracking_job_id
+      LEFT JOIN price_history ph
+        ON tj.id = ph.tracking_job_id
 
-            WHERE tj.tracking_active = TRUE
-
-            ORDER BY tj.id DESC, ph.tracked_at DESC
-        `);
+      ORDER BY tj.id DESC, ph.tracked_at DESC
+    `);
 
     const products = {};
 
@@ -400,6 +383,7 @@ app.get("/api/tracked-products", async (req, res) => {
     }
 
     res.json(Object.values(products));
+
   } catch (error) {
     console.error("Tracked products error:", error);
 
@@ -478,6 +462,43 @@ app.post("/api", (req, res) => {
   });
 });
 
-app.listen(4000, () => {
+
+
+app.post("/api/run-worker", (req, res) => {
+  const secret = req.headers.authorization;
+
+  if (secret !== `Bearer ${process.env.WORKER_SECRET}`) {
+    return res.status(401).json({
+      success: false,
+      error: "Unauthorized",
+    });
+  }
+
+  const workerPath = path.join(__dirname, "worker.js");
+
+  const worker = spawn("node", [workerPath]);
+
+  worker.stdout.on("data", (data) => {
+    console.log("Worker:", data.toString());
+  });
+
+  worker.stderr.on("data", (data) => {
+    console.error("Worker error:", data.toString());
+  });
+
+  worker.on("error", (error) => {
+    console.error("Worker spawn error:", error);
+  });
+
+  worker.on("close", (code) => {
+    console.log("Worker exited with code:", code);
+  });
+
+  res.json({
+    success: true,
+    message: "Worker started",
+  });
+});
+app.listen(PORT, () => {
   console.log("Server listening on port 4000");
 });

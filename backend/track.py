@@ -25,7 +25,7 @@ def clean_prices(prices):
 
 with sync_playwright() as p:
     prices=[]
-    browser = p.chromium.launch(headless=False)
+    browser = p.chromium.launch(headless=True) ##for deployment need to make true
     if sys.argv[1]:
         card_code = sys.argv[1]
     else:
@@ -78,10 +78,10 @@ with sync_playwright() as p:
         btn_click.click()
         time.sleep(7)
         x=opt.inner_text().strip()
-        if page.locator("span.avail-pill.avail-no").count()!=0:
+        if offer.locator("span.avail-pill.avail-no").count()!=0:
             prices.append({"option":x,"price":"sold out"})
         else:
-            price_div = page.locator("div.nvo-c5").first
+            price_div = offer.locator("div.nvo-c5").first
             spans = price_div.locator("span")
             price_parts =  spans.all_inner_texts()
             price = "".join(price_parts).replace("\xa0", "").replace("\u200b", "").replace(" ","").strip()

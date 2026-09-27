@@ -1,11 +1,7 @@
 const { Pool } = require("pg");
 
 const pool = new Pool({
-    host: "localhost",
-    port: 5432,
-    user: "postgres",
-    password: "postgres",
-    database: "price_tracker"
+     connectionString: process.env.DATABASE_URL
 });
 
 pool.on("connect", async (client) => {

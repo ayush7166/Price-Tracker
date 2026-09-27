@@ -49,7 +49,7 @@ with sync_playwright() as p:
             btn_click.click()
             time.sleep(7)
             x=opt.inner_text().strip()
-            if page.locator("span.avail-pill.avail-no").count()!=0:
+            if offer.locator("span.avail-pill.avail-no").count()!=0:
                 prices.append({"option":x,"price":"sold out"})
                 print(x,":","sold out")
             else:

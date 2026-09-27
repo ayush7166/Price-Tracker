@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+const VITE_API_URL = import.meta.env.VITE_API_URL;
 
 function App() {
   const [search, setsearch] = useState("");
@@ -12,7 +13,7 @@ function App() {
       try {
 
         const response = await fetch(
-          "http://localhost:4000/api/tracked-products"
+          `${VITE_API_URL}/api/tracked-products`
         );
 
         const data = await response.json();
@@ -44,7 +45,7 @@ function App() {
     try {
 
       const response = await fetch(
-        `http://localhost:4000/api/tracked-products/${trackingJobId}/toggle`,
+        `${VITE_API_URL}/api/tracked-products/${trackingJobId}/toggle`,
         {
           method: "PATCH"
         }
@@ -108,7 +109,7 @@ function App() {
     try {
 
       const response = await fetch(
-        `http://localhost:4000/api/tracked-products/${trackingJobId}`,
+        `${VITE_API_URL}/api/tracked-products/${trackingJobId}`,
         {
           method: "DELETE"
         }
@@ -145,7 +146,7 @@ function App() {
     try {
 
       const response = await fetch(
-        "http://localhost:4000/api/track",
+        `${VITE_API_URL}/api/track`,
         {
           method: "POST",
           headers: {
@@ -167,7 +168,7 @@ function App() {
 
       // Load latest data from PostgreSQL
       const historyResponse = await fetch(
-        "http://localhost:4000/api/tracked-products"
+        `${VITE_API_URL}/api/tracked-products`
       );
 
       const historyData = await historyResponse.json();
@@ -195,7 +196,7 @@ function App() {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:4000/api", {
+      const response = await fetch(`${VITE_API_URL}/api`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
