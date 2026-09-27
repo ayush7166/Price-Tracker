@@ -382,7 +382,7 @@ function App() {
                         <td>{item.price}</td>
                         <td>
                           {item.tracked_at
-                            ? new Date(`${item.tracked_at}+05:30`).toLocaleString("en-IN", {
+                            ? new Date(item.tracked_at).toLocaleString("en-IN", {
                               timeZone: "Asia/Kolkata",
                               dateStyle: "medium",
                               timeStyle: "medium"
