@@ -11,7 +11,7 @@ const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 10000;
 app.patch("/api/tracked-products/:id/toggle", async (req, res) => {
   const trackingJobId = req.params.id;
 
@@ -383,7 +383,6 @@ app.get("/api/tracked-products", async (req, res) => {
     }
 
     res.json(Object.values(products));
-
   } catch (error) {
     console.error("Tracked products error:", error);
 
@@ -433,7 +432,10 @@ app.delete("/api/tracked-products/:id", async (req, res) => {
 app.post("/api", (req, res) => {
   const search = req.body.search;
   console.log("Search from React:", search);
-  const pythonPath = path.join(__dirname, "venv", "Scripts", "python.exe");
+  const pythonPath =
+    process.platform === "win32"
+      ? path.join(__dirname, "venv", "Scripts", "python.exe")
+      : "python";
   const scraperPath = path.join(__dirname, "scraper.py");
   const python = spawn(pythonPath, [scraperPath, search]);
   let output = "";
@@ -461,8 +463,6 @@ app.post("/api", (req, res) => {
     }
   });
 });
-
-
 
 app.post("/api/run-worker", (req, res) => {
   const secret = req.headers.authorization;
@@ -499,6 +499,6 @@ app.post("/api/run-worker", (req, res) => {
     message: "Worker started",
   });
 });
-app.listen(PORT, () => {
-  console.log("Server listening on port 4000");
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server listening on port ${PORT}`);
 });
