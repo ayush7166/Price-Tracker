@@ -9,7 +9,7 @@ with sync_playwright() as p:
     page = browser.new_page()
     prices = []
     
-    for card_code in [2661]:
+    for card_code in [2425,2627]:
         url=f"https://demo.inelabteamdev.com/item/{card_code}"
         page.goto(url,wait_until="domcontentloaded")
         
@@ -53,9 +53,8 @@ with sync_playwright() as p:
                 prices.append({"option":x,"price":"sold out"})
                 print(x,":","sold out")
             else:
-                price_div = page.locator("div.nvo-c5").first
-                spans = price_div.locator("span")
-                price_parts =  spans.all_inner_texts()
+                price_div = page.locator("b.dpe-n6").first
+                price_parts =  price_div.all_inner_texts()
                 price = "".join(price_parts).replace("\xa0", "").replace("\u200b", "").replace(" ","").strip()
                 prices.append({"option":x,"price":price})
                 print(x,":",price)
