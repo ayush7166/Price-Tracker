@@ -151,8 +151,8 @@ app.post("/api/track", async (req, res) => {
   try {
     const pythonPath =
       process.platform === "win32"
-        ? path.join(__dirname, "venv", "Scripts", "python.exe")
-        : "python3";
+      ? path.join(__dirname, "venv", "Scripts", "python.exe")
+      : "/opt/venv/bin/python";
 
     const trackPath = path.join(__dirname, "track.py");
 
