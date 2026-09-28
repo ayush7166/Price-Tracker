@@ -82,7 +82,7 @@ with sync_playwright() as p:
         if offer.locator("span.avail-pill.avail-no").count()!=0:
             prices.append({"option":x,"price":"sold out"})
         else:
-            data = page.locator("div.offer-panel.offer-ready")
+            data = page.locator("div.offer-panel")
             try:
                 data.wait_for(state="visible", timeout=15000)
                 d = data.inner_text()
