@@ -49,7 +49,7 @@ with sync_playwright() as p:
     # brand = page.locator("p.card-maker").inner_text().strip()
     # product_name = page.locator("h3.card-title").inner_text().strip()
     # Hover offer panel
-    offer = page.first.locator("div.offer-panel")
+    offer = page.locator("div.offer-panel").first
     offer.wait_for(state="visible")
     box = offer.bounding_box()
     x = box["x"]
@@ -76,7 +76,7 @@ with sync_playwright() as p:
         if btn_click.count()==0:
             btn_click=offer.locator("button.ctl.ctl-main")
             time.sleep(1)
-        btn_click.click()
+        btn_click.first.click()
         time.sleep(7)
         x=opt.inner_text().strip()
         if offer.locator("span.avail-pill.avail-no").count()!=0:
