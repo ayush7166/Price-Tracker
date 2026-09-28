@@ -8,7 +8,7 @@ The application uses React for the frontend, Node.js and Express for the backend
 
 Frontend:
 
-`https://price-trackerr.vercel.app`
+`\https://price-trackeer.vercel.app`
 
 Backend:
 
