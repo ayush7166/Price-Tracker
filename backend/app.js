@@ -132,7 +132,12 @@ app.patch("/api/tracked-products/:id/toggle", async (req, res) => {
 // });
 
 app.post("/api/track", async (req, res) => {
-  const { card_code, product_name, product_url, option } = req.body;
+  const {
+    card_code,
+    product_name,
+    product_brand,
+    product_dept
+  } = req.body;
 
   console.log("Track request:", req.body);
 
@@ -144,36 +149,6 @@ app.post("/api/track", async (req, res) => {
   }
 
   try {
-    // ==========================================
-    // 1. STORE TRACKING JOB
-    // ==========================================
-
-    const jobResult = await pool.query(
-      `
-            INSERT INTO tracking_jobs
-            (
-                card_code,
-                product_name,
-                product_url,
-                option,
-                tracking_active
-            )
-            VALUES ($1, $2, $3, $4, TRUE)
-            RETURNING *
-            `,
-      [card_code, product_name, product_url, option],
-    );
-
-    const job = jobResult.rows[0];
-
-    console.log("Tracking job created:", job.id);
-
-    // ==========================================
-    // 2. RUN PYTHON SCRAPER
-    // ==========================================
-
-    // const pythonPath = path.join(__dirname, "venv", "Scripts", "python.exe"); // this is for localhsot
-    // const pythonPath = "python";
     const pythonPath =
       process.platform === "win32"
         ? path.join(__dirname, "venv", "Scripts", "python.exe")
@@ -184,6 +159,10 @@ app.post("/api/track", async (req, res) => {
     const python = spawn(pythonPath, [trackPath, card_code]);
 
     let output = "";
+
+    // ======================================
+    // PYTHON OUTPUT
+    // ======================================
 
     python.stdout.on("data", (data) => {
       const text = data.toString();
@@ -197,30 +176,24 @@ app.post("/api/track", async (req, res) => {
       console.error("Python:", data.toString());
     });
 
-    python.on("error", async (error) => {
+    // ======================================
+    // PYTHON SPAWN ERROR
+    // ======================================
+
+    python.on("error", (error) => {
       console.error("Python spawn error:", error);
 
-      for (const item of result) {
-        await pool.query(
-          `
-        INSERT INTO price_history
-        (
-            tracking_job_id,
-            price,
-            status,
-            error_message
-        )
-        VALUES ($1, $2, $3, $4)
-        `,
-          [
-            job.id,
-            item.price === "N/A" ? null : item.price,
-            item.price === "N/A" ? "failed" : "success",
-            item.price === "N/A" ? "Price not available" : null,
-          ],
-        );
+      if (!res.headersSent) {
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+        });
       }
     });
+
+    // ======================================
+    // PYTHON FINISHED
+    // ======================================
 
     python.on("close", async (code) => {
       console.log("Python exited:", code);
@@ -230,116 +203,183 @@ app.post("/api/track", async (req, res) => {
       // ======================================
 
       if (code !== 0) {
-        await pool.query(
-          `
-                    INSERT INTO price_history
-                    (
-                        tracking_job_id,
-                        status,
-                        error_message
-                    )
-                    VALUES ($1, $2, $3)
-                    `,
-          [job.id, "failed", "Python scraper failed"],
-        );
-
-        return;
+        return res.status(500).json({
+          success: false,
+          error: "Python scraper failed",
+        });
       }
 
-      // ======================================
-      // PARSE PYTHON RESULT
-      // ======================================
-
       try {
-        const result = JSON.parse(output.trim());
+        // ======================================
+        // PARSE PYTHON JSON
+        // ======================================
+
+        const result = JSON.parse(output);
 
         console.log("Scraper result:", result);
 
-        // ==================================
-        // SAVE PRICE
-        // ==================================
+        if (!Array.isArray(result)) {
+          return res.status(500).json({
+            success: false,
+            error: "Invalid scraper result",
+          });
+        }
 
-        // ==================================
-        // SAVE OPTIONS + PRICES
-        // ==================================
+        // ======================================
+        // CREATE TRACKING JOB
+        // ======================================
+
+        const productUrl =
+          `https://demo.inelabteamdev.com/item/${card_code}`;
+
+        const jobResult = await pool.query(
+          `
+          INSERT INTO tracking_jobs
+          (
+            card_code,
+            product_name,
+            option,
+            tracking_active,
+            product_url,
+            brand,
+            dept_label,
+            created_at,
+            last_tracked_at
+          )
+          VALUES
+          (
+            $1,
+            $2,
+            NULL,
+            TRUE,
+            $3,
+            $4,
+            $5,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          )
+          RETURNING *
+          `,
+          [
+            String(card_code),
+            product_name || "",
+            productUrl,
+            product_brand || "",
+            product_dept || "",
+          ]
+        );
+
+        const job = jobResult.rows[0];
+
+        console.log("Tracking job created:", job);
+
+        // ======================================
+        // SAVE PRICE HISTORY
+        // ======================================
 
         for (const item of result) {
+
+          let price = null;
+
+          if (
+            item.price &&
+            item.price !== "N/A" &&
+            item.price !== "--"
+          ) {
+            const cleanedPrice = String(item.price)
+              .replace(/[₹,\s]/g, "");
+
+            const numericPrice = Number(cleanedPrice);
+
+            if (!Number.isNaN(numericPrice)) {
+              price = numericPrice;
+            }
+          }
+
+          const status =
+            price !== null
+              ? "success"
+              : "failed";
+
+          const errorMessage =
+            price !== null
+              ? null
+              : "Price not available";
+
           await pool.query(
             `
-    INSERT INTO price_history
-    (
-        tracking_job_id,
-        option,
-        price,
-        status,
-        error_message
-    )
-    VALUES ($1, $2, $3, $4, $5)
-    `,
+            INSERT INTO price_history
+            (
+              tracking_job_id,
+              option,
+              price,
+              status,
+              error_message,
+              tracked_at
+            )
+            VALUES
+            (
+              $1,
+              $2,
+              $3,
+              $4,
+              $5,
+              CURRENT_TIMESTAMP
+            )
+            `,
             [
               job.id,
-              item.option,
-              item.price === "N/A" ? null : item.price,
-              item.price === "N/A" ? "failed" : "success",
-              item.price === "N/A" ? "Price not available" : null,
-            ],
+              item.option || "",
+              price,
+              status,
+              errorMessage,
+            ]
           );
         }
 
-        console.log("All options and prices saved successfully");
-
-        // ==================================
-        // UPDATE LAST TRACKED
-        // ==================================
-
-        await pool.query(
-          `
-                    UPDATE tracking_jobs
-                    SET last_tracked_at = CURRENT_TIMESTAMP
-                    WHERE id = $1
-                    `,
-          [job.id],
+        console.log(
+          "All options and prices saved successfully"
         );
 
-        console.log("Price saved successfully");
+        // ======================================
+        // RESPONSE TO REACT
+        // ======================================
+
+        return res.json({
+          success: true,
+          message: "Price tracking started",
+
+          job: {
+            id: job.id,
+            card_code: job.card_code,
+            product_name: job.product_name,
+            product_url: job.product_url,
+            brand: job.brand,
+            dept_label: job.dept_label,
+            tracking_active: job.tracking_active,
+            created_at: job.created_at,
+            last_tracked_at: job.last_tracked_at,
+          },
+
+          prices: result,
+        });
+
       } catch (error) {
+
         console.error("JSON / DB error:", error);
 
-        await pool.query(
-          `
-                    INSERT INTO price_history
-                    (
-                        tracking_job_id,
-                        status,
-                        error_message
-                    )
-                    VALUES ($1, $2, $3)
-                    `,
-          [job.id, "failed", error.message],
-        );
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+        });
       }
     });
 
-    // ==========================================
-    // 3. IMMEDIATELY RESPOND TO REACT
-    // ==========================================
-
-    res.json({
-      success: true,
-      message: "Price tracking started",
-
-      job: {
-        id: job.id,
-        card_code: job.card_code,
-        product_name: job.product_name,
-        option: job.option,
-        tracking_active: job.tracking_active,
-      },
-    });
   } catch (error) {
+
     console.error("Track API error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message,
     });
@@ -353,6 +393,8 @@ app.get("/api/tracked-products", async (req, res) => {
         tj.card_code,
         tj.product_name,
         tj.product_url,
+        tj.brand,
+        tj.dept_label,
         tj.tracking_active,
 
         ph.id AS price_history_id,
@@ -367,18 +409,23 @@ app.get("/api/tracked-products", async (req, res) => {
       LEFT JOIN price_history ph
         ON tj.id = ph.tracking_job_id
 
-      ORDER BY tj.id DESC, ph.tracked_at DESC
+      ORDER BY
+        tj.id DESC,
+        ph.tracked_at DESC
     `);
 
     const products = {};
 
     for (const row of result.rows) {
+
       if (!products[row.tracking_job_id]) {
         products[row.tracking_job_id] = {
           tracking_job_id: row.tracking_job_id,
           card_code: row.card_code,
           product_name: row.product_name,
           product_url: row.product_url,
+          brand: row.brand,
+          dept_label: row.dept_label,
           tracking_active: row.tracking_active,
           prices: [],
         };
@@ -394,14 +441,18 @@ app.get("/api/tracked-products", async (req, res) => {
         });
       }
     }
+console.log("TRACKED PRODUCTS API:", JSON.stringify(Object.values(products), null, 2));
+   res.json({
+  success: true,
+  data: Object.values(products)
+});
 
-    res.json(Object.values(products));
   } catch (error) {
     console.error("Tracked products error:", error);
 
     res.status(500).json({
       success: false,
-      error: "Failed to fetch tracked products",
+      error: error.message,
     });
   }
 });

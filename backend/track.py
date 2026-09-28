@@ -13,7 +13,9 @@ with sync_playwright() as p:
         card_code=2064
     URL = f"https://demo.inelabteamdev.com/item/{card_code}"
     page = browser.new_page()
+    time.sleep(1)
     page.goto(URL,wait_until="domcontentloaded")
+    time.sleep(1)
     # Remove consent popup
     page.add_style_tag(content="""
         .consent-scrim {

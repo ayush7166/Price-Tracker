@@ -23,7 +23,11 @@ function App() {
           data
         );
 
-        setTrackedProducts(data);
+        if (data.success) {
+          setTrackedProducts(data.data);
+        } else {
+          setTrackedProducts([]);
+        }
 
       } catch (error) {
 
@@ -153,20 +157,22 @@ function App() {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            card_code: product.card_code
+            card_code: product.card_code,
+            product_name: product.title,
+            product_brand: product.brand,
+            product_dept: product.dept_label
           })
         }
       );
-
       const data = await response.json();
 
       console.log("Tracker:", data);
-
       if (!data.success) {
         return;
       }
 
-      // Load latest data from PostgreSQL
+
+      // Reload tracked products from database
       const historyResponse = await fetch(
         `${VITE_API_URL}/api/tracked-products`
       );
@@ -174,22 +180,21 @@ function App() {
       const historyData = await historyResponse.json();
 
       console.log(
-        "Tracked products from DB:",
+        "Updated tracked products:",
         historyData
       );
 
-      setTrackedProducts(historyData);
+      if (historyData.success) {
+        setTrackedProducts(historyData.data);
+      }
 
     } catch (error) {
-
       console.error(
         "Track error:",
         error
       );
-
     }
   };
-
 
 
   async function handlesubmit(e) {
@@ -338,10 +343,10 @@ function App() {
 
               <div key={index}>
 
-                <h4>Product: {product.product_name}</h4>
-                <h4>Card Code: {product.card_code}</h4>
-                <h4>Department : {product.dept_label}</h4>
-                <h4>Brand : {product.option}</h4>
+             <h4>Product: {product.product_name}</h4>
+            <h4>Card Code: {product.card_code}</h4>
+            <h4>Department: {product.dept_label}</h4>
+            <h4>Brand: {product.brand}</h4>
                 <button
                   onClick={() => stopTracking(product.tracking_job_id)}
                 >
